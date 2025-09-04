@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../services/api_service.dart';
 
 class AddTaskScreen extends StatefulWidget {
   @override
@@ -7,10 +8,12 @@ class AddTaskScreen extends StatefulWidget {
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
+  final _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   DateTime _selectedDate = DateTime.now().add(Duration(days: 1));
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -33,16 +36,57 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     }
   }
 
-  void _saveTask() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _saveTask() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
       final newTask = Task(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         dueDate: _selectedDate,
       );
 
-      Navigator.of(context).pop(newTask);
+      final savedTask = await _apiService.createTask(newTask);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Task created successfully!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      
+      Navigator.of(context).pop(savedTask);
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error trying to create a task: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -89,7 +133,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - keyboardHeight - 48,
+                  minHeight: (constraints.maxHeight - keyboardHeight - 48).clamp(0.0, double.infinity),
                   maxWidth: isDesktop ? 600 : double.infinity,
                 ),
                 child: Center(
@@ -235,7 +279,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                             children: [
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () => Navigator.of(context).pop(),
+                                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                                   style: OutlinedButton.styleFrom(
                                     padding: EdgeInsets.symmetric(vertical: 16),
                                     side: BorderSide(color: Colors.grey[400]!),
@@ -257,27 +301,49 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                               Expanded(
                                 flex: 2,
                                 child: ElevatedButton(
-                                  onPressed: _saveTask,
+                                  onPressed: _isLoading ? null : _saveTask,
                                   style: ElevatedButton.styleFrom(
                                     padding: EdgeInsets.symmetric(vertical: 16),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.save,
-                                        size: isTablet ? 24 : 20,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Salvar Tarefa',
-                                        style: TextStyle(
-                                          fontSize: isTablet ? 18 : 16,
-                                          fontWeight: FontWeight.w600,
+                                  child: _isLoading
+                                      ? Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Salvando...',
+                                              style: TextStyle(
+                                                fontSize: isTablet ? 18 : 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.save,
+                                              size: isTablet ? 24 : 20,
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              'Salvar Tarefa',
+                                              style: TextStyle(
+                                                fontSize: isTablet ? 18 : 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ),
                             ],
@@ -287,28 +353,50 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               ElevatedButton(
-                                onPressed: _saveTask,
+                                onPressed: _isLoading ? null : _saveTask,
                                 style: ElevatedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.save),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Salvar Tarefa',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                child: _isLoading
+                                    ? Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Salvando...',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.save),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Salvar Tarefa',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
-                                ),
                               ),
                               SizedBox(height: 12),
                               OutlinedButton(
-                                onPressed: () => Navigator.of(context).pop(),
+                                onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
                                 style: OutlinedButton.styleFrom(
                                   padding: EdgeInsets.symmetric(vertical: 16),
                                   side: BorderSide(color: Colors.grey[400]!),

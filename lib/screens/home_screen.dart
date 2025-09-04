@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:projeto_teste/models/task.dart';
 import 'package:projeto_teste/screens/add_task_screen.dart';
 import 'package:projeto_teste/widgets/task_item.dart';
+import '../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -9,57 +10,45 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _apiService = ApiService();
   List<Task> tasks = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSampleTasks();
+    _loadTasks();
   }
 
-  void _loadSampleTasks() {
-    tasks = [
-      Task(
-        id: '1',
-        title: 'Estudar Flutter',
-        description: 'Estudar os conceitos básicos de Flutter',
-        dueDate: DateTime.now().add(Duration(days: 1)),
-        isCompleted: true,
-      ),
-      Task(
-        id: '2',
-        title: 'Fazer projetos',
-        description: 'Desenvolver aplicativos Flutter',
-        dueDate: DateTime.now().add(Duration(days: 2)),
-      ),
-      Task(
-        id: '3',
-        title: 'Tarefa Atrasada',
-        description: 'Esta tarefa está atrasada',
-        dueDate: DateTime.now().subtract(Duration(days: 2)),
-      ),
-      Task(
-        id: '4',
-        title: 'Tarefa para Hoje',
-        description: 'Esta tarefa vence hoje',
-        dueDate: DateTime.now(),
-      ),
-      Task(
-        id: '5',
-        title: 'Tarefa para Amanhã',
-        description: 'Esta tarefa vence amanhã',
-        dueDate: DateTime.now().add(Duration(days: 1)),
-      ),
-      Task(
-        id: '6',
-        title: 'Tarefa da Próxima Semana',
-        description: 'Esta tarefa vence na próxima semana',
-        dueDate: DateTime.now().add(Duration(days: 10)),
-      ),
-    ];
+  void _loadTasks() async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      final fetchedTasks = await _apiService.fetchTasks();
+
+      setState(() {
+        tasks = fetchedTasks;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load tasks: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
-  void _toggleTaskCompletion(String taskId) {
+  void _toggleTaskCompletion(String? taskId) {
+    if (taskId == null) return;
+    
     setState(() {
       int index = tasks.indexWhere((task) => task.id == taskId);
       if (index != -1) {
@@ -70,10 +59,26 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _deleteTask(String taskId) {
-    setState(() {
-      tasks.removeWhere((task) => task.id == taskId);
-    });
+  void _deleteTask(String? taskId) async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+      
+      await _apiService.deleteTask(taskId!);
+
+      setState(() {
+        tasks.removeWhere((task) => task.id == taskId);
+        isLoading = false;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete task: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _navigateToAddTask() async {
