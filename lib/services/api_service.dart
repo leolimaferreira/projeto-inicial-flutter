@@ -5,20 +5,6 @@ import '../models/task.dart';
 class ApiService {
   static const String baseUrl = 'http://192.168.0.86:8080/tasks';
 
-  Future<List<Task>> fetchTasks() async {
-    try {
-      final response = await http.get(Uri.parse(baseUrl));
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Task.fromJson(json)).toList();
-      } else {
-        throw Exception('Error trying to fetch tasks: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Connection error: $e');
-    }
-  }
 
   Future<Task> createTask(Task task) async {
     try {
@@ -36,6 +22,36 @@ class ApiService {
         return Task.fromJson(json.decode(response.body));
       } else {
         throw Exception('Error trying to create a task: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  Future<Task> getTaskById(String id) async {
+    try {
+      final url = '$baseUrl/$id';
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        return Task.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Error trying to fetch task: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
+    }
+  }
+
+  Future<List<Task>> fetchTasks() async {
+    try {
+      final response = await http.get(Uri.parse(baseUrl));
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Task.fromJson(json)).toList();
+      } else {
+        throw Exception('Error trying to fetch tasks: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Connection error: $e');

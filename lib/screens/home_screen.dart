@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_teste/models/task.dart';
 import 'package:projeto_teste/screens/add_task_screen.dart';
+import 'package:projeto_teste/screens/update_task_screen.dart';
 import 'package:projeto_teste/widgets/task_item.dart';
 import '../services/api_service.dart';
 
@@ -46,17 +47,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _toggleTaskCompletion(String? taskId) {
-    if (taskId == null) return;
+  void _toggleTaskCompletion(String? taskId) async {
+    try {
+      setState(() {
+        isLoading = true;
+      });
+
+      await _apiService.toggleTaskCompletion(
+          tasks.firstWhere((task) => task.id == taskId));
+      
+      setState(() {
+        isLoading = false;
+        int index = tasks.indexWhere((task) => task.id == taskId);
+        if (index != -1) {
+          tasks[index] = tasks[index].copyWith(
+            isCompleted: !tasks[index].isCompleted,
+          );
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update task status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
     
-    setState(() {
-      int index = tasks.indexWhere((task) => task.id == taskId);
-      if (index != -1) {
-        tasks[index] = tasks[index].copyWith(
-          isCompleted: !tasks[index].isCompleted,
-        );
-      }
-    });
   }
 
   void _deleteTask(String? taskId) async {
@@ -89,6 +106,23 @@ class _HomeScreenState extends State<HomeScreen> {
     if (newTask != null) {
       setState(() {
         tasks.add(newTask);
+      });
+    }
+  }
+
+  void _navigateToEditTask(Task task) async {
+    final Task? updatedTask = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(
+      builder: (context) => UpdateTaskScreen(task: task),
+    ));
+
+    if (updatedTask != null) {
+      setState(() {
+        int index = tasks.indexWhere((t) => t.id == updatedTask.id);
+        if (index != -1) {
+          tasks[index] = updatedTask;
+        }
       });
     }
   }
@@ -243,18 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               onToggleComplete: () =>
                                   _toggleTaskCompletion(task.id),
                               onDelete: () => _deleteTask(task.id),
-                              onEdit: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Edição em desenvolvimento'),
-                                    backgroundColor: Color(0xFF6366F1),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                );
-                              },
+                              onEdit: () => _navigateToEditTask(task),
                             ),
                           );
                         },
